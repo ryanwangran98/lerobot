@@ -38,11 +38,40 @@ python -m lerobot.record `
     --teleop.type=so101_leader `
     --teleop.port=COM3 `
     --teleop.id=my_leader_arm `
-    --dataset.repo_id=wangranryan/xlerobot_pick_orange `
-    --dataset.single_task="把橘子放到篮子里" `
-    --dataset.num_episodes=10 `
+    --dataset.repo_id=wangranryan/xlerobot_lsd `
+    --dataset.single_task="把螺丝刀放到篮子里" `
+    --dataset.num_episodes=5 `
     --display_data=true `
     --play_sounds=false `
+    --resume=true 
+
+python -m lerobot.record `
+    --robot.type=xlerobot_single_arm_client `
+    --robot.remote_ip=192.168.110.29 `
+    --robot.id=my_xlerobot `
+    --teleop.type=so101_leader `
+    --teleop.port=COM3 `
+    --teleop.id=my_leader_arm `
+    --dataset.repo_id=wangranryan/xlerobot_lsd `
+    --dataset.single_task="把螺丝刀放到篮子里" `
+    --dataset.num_episodes=10 `
+    --display_data=true `
+    --play_sounds=false 
+
+lerobot-train `
+  --policy.path=lerobot/smolvla_base `
+  --policy.repo_id=wangranryan/xlerobot_lsd_1 `
+  --dataset.repo_id=wangranryan/xlerobot_lsd `
+  --batch_size=8 `
+  --steps=20000 `
+  --output_dir=outputs/train/my_smolvla `
+  --job_name=my_smolvla_training `
+  --policy.device=cuda `
+  --wandb.enable=false
 
 
---resume=true `
+  huggingface-cli upload wangranryan/xlerobot_lsd "C:\Users\wr\.cache\huggingface\lerobot\wangranryan\xlerobot_lsd" --repo-type dataset
+
+
+
+
