@@ -58,19 +58,36 @@ python -m lerobot.record `
     --display_data=true `
     --play_sounds=false 
 
+huggingface-cli upload wangranryan/xlerobot_lsd "C:\Users\wr\.cache\huggingface\lerobot\wangranryan\xlerobot_lsd" --repo-type dataset
+
 lerobot-train `
   --policy.path=lerobot/smolvla_base `
-  --policy.repo_id=wangranryan/xlerobot_lsd_1 `
+  --policy.repo_id=wangranryan/xlerobot_lsd_2 `
   --dataset.repo_id=wangranryan/xlerobot_lsd `
-  --batch_size=8 `
+  --batch_size=16 `
   --steps=20000 `
-  --output_dir=outputs/train/my_smolvla `
+  --output_dir=outputs/train/my_smolvla_bs16 `
   --job_name=my_smolvla_training `
   --policy.device=cuda `
   --wandb.enable=false
 
 
-  huggingface-cli upload wangranryan/xlerobot_lsd "C:\Users\wr\.cache\huggingface\lerobot\wangranryan\xlerobot_lsd" --repo-type dataset
+
+python src/lerobot/scripts/server/policy_server.py --host=127.0.0.1 --port=8080
+
+# 启动robot client (在另一个终端)
+python src/lerobot/scripts/server/robot_client.py \
+    --robot.type=xlerobot_single_arm \
+    --robot.port1=COM3 \
+    --robot.cameras="{ left_wrist: {type: opencv, index_or_path: /dev/video0, width: 640, height: 480, fps: 30}}" \
+    --task="dummy" \
+    --server_address=127.0.0.1:8080 \
+    --policy_type=act \
+    --pretrained_name_or_path=user/model \
+    --policy_device=cuda \
+    --actions_per_chunk=50 \
+    --chunk_size_threshold=0.5
+
 
 
 
