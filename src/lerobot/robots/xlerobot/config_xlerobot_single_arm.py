@@ -62,7 +62,7 @@ class XLerobotSingleArmConfig(RobotConfig):
     - Base motors: ID 7-9 (base_left_wheel, base_back_wheel, base_right_wheel)
     """
     
-    port1: str = "COM3"  # port to connect to both arm (6 motors) and base (3 motors)
+    port1: str = "/dev/ttyACM0"  # port to connect to both arm (6 motors) and base (3 motors)
     
     # Set to True if using right arm instead of left arm
     use_right_arm: bool = False

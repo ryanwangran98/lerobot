@@ -72,8 +72,7 @@ lerobot-train `
   --wandb.enable=false
 
 
-
-python src/lerobot/scripts/server/policy_server.py --host=127.0.0.1 --port=8080
+python src/lerobot/scripts/server/policy_server.py --host=0.0.0.0 --port=8080
 
 # 启动robot client (在另一个终端)
 python src/lerobot/scripts/server/robot_client.py \
@@ -94,8 +93,8 @@ python src/lerobot/scripts/server/robot_client.py \
 
 
 
-python -m lerobot.async_inference.robot_client \
-    --server_address=127.0.0.1:8080 \ # SERVER: the host address and port of the policy server
+python -m src.lerobot.scripts.server.robot_client \
+    --server_address=192.168.110.39:8080 \ # SERVER: the host address and port of the policy server
     --robot.type=xlerobot_single_arm \ # ROBOT: your robot type
     --robot.port=/dev/ttyACM0 \ # ROBOT: your robot port
     --robot.id=None \ # ROBOT: your robot id, to load calibration file
@@ -108,3 +107,22 @@ python -m lerobot.async_inference.robot_client \
     --chunk_size_threshold=0.5 \ # CLIENT: the threshold for the chunk size before sending a new observation to the server
     --aggregate_fn_name=weighted_average \ # CLIENT: the function to aggregate actions on overlapping portions
     --debug_visualize_queue_size=True # CLIENT: whether to visualize the queue size at runtime
+    
+
+python -m src.lerobot.scripts.server.robot_client \
+    --server_address=192.168.110.39:8080 \
+    --robot.type=xlerobot_single_arm \
+    --robot.port1=/dev/ttyACM0 \
+    --robot.id=None \
+    --robot.cameras='{"left_wrist": {"type": "opencv", "index_or_path": 2, "width": 640, "height": 480, "fps": 30}, "head": {"type": "opencv", "index_or_path": 0, "width": 640, "height": 480, "fps": 30}}' \
+    --task="把螺丝刀放到篮子里" \
+    --policy_type=smolvla \
+    --pretrained_name_or_path=wangranryan/xlerobot_lsd_2 \
+    --policy_device=cuda \
+    --actions_per_chunk=50 \
+    --chunk_size_threshold=0.5 \
+    --aggregate_fn_name=weighted_average \
+    --debug_visualize_queue_size=True
+
+    
+git fetch origin && git reset --hard origin/main
