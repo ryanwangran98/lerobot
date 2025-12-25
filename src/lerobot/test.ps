@@ -17,8 +17,8 @@
 #   --value VALUE    Value to set (angle/velocity for normal mode, raw integer for raw mode)
 #   --interactive    Enter interactive mode for multiple commands
 #   --list           List all available joints
-# python -m lerobot.robots.xlerobot.xlerobot_single_arm_host --robot.id=None
-# python -m lerobot.4_xlerobot_single_arm_teleop_leader_client
+python -m lerobot.robots.xlerobot.xlerobot_single_arm_host --robot.id=None
+python -m lerobot.4_xlerobot_single_arm_teleop_leader_client
 python -m lerobot.record \
     --robot.type=xlerobot_single_arm_client \
     --robot.remote_ip=192.168.110.29 \
@@ -67,47 +67,33 @@ lerobot-train `
   --batch_size=16 `
   --steps=20000 `
   --output_dir=outputs/train/my_smolvla_bs16 `
-  --job_name=my_smolvla_training `
+  --job_name=training `
   --policy.device=cuda `
   --wandb.enable=false
 
+# --multi_gpu
 
-python src/lerobot/scripts/server/policy_server.py --host=0.0.0.0 --port=8080
+accelerate launch `
+  --num_processes=1 `
+  (Get-Command lerobot-train).Source `
+  --output_dir=outputs/train/groot `
+  --save_checkpoint=true `
+  --batch_size=8 `
+  --steps=20000 `
+  --save_freq=2500 `
+  --log_freq=100 `
+  --policy.push_to_hub=true `
+  --policy.type=groot `
+  --policy.repo_id=wangranryan/xlerobot_lsd_groot `
+  --policy.tune_diffusion_model=false `
+  --dataset.repo_id=wangranryan/xlerobot_lsd `
+  --wandb.enable=false `
+  --wandb.disable_artifact=true `
+  --job_name=train
 
-# 启动robot client (在另一个终端)
-python src/lerobot/scripts/server/robot_client.py \
-    --robot.type=xlerobot_single_arm \
-    --robot.port1=COM3 \
-    --robot.cameras="{ left_wrist: {type: opencv, index_or_path: /dev/video0, width: 640, height: 480, fps: 30}}" \
-    --task="dummy" \
-    --server_address=127.0.0.1:8080 \
-    --policy_type=act \
-    --pretrained_name_or_path=user/model \
-    --policy_device=cuda \
-    --actions_per_chunk=50 \
-    --chunk_size_threshold=0.5
-
-    
+python src/lerobot/scripts/server/policy_server.py --host=0.0.0.0 --port=8080 *>&1 | Tee-Object -FilePath "log.log"
 
 
-
-
-
-python -m src.lerobot.scripts.server.robot_client \
-    --server_address=192.168.110.39:8080 \ # SERVER: the host address and port of the policy server
-    --robot.type=xlerobot_single_arm \ # ROBOT: your robot type
-    --robot.port=/dev/ttyACM0 \ # ROBOT: your robot port
-    --robot.id=None \ # ROBOT: your robot id, to load calibration file
-    --robot.cameras="{ left_wrist: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}, head(RGDB): {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30}}" \ # POLICY: the cameras used to acquire frames, with keys matching the keys expected by the policy
-    --task="把螺丝刀放到篮子里" \ # POLICY: The task to run the policy on (`Fold my t-shirt`). Not necessarily defined for all policies, such as `act`
-    --policy_type=smolvla \ # POLICY: the type of policy to run (smolvla, act, etc)
-    --pretrained_name_or_path=wangranryan/xlerobot_lsd_2 \ # POLICY: the model name/path on server to the checkpoint to run (e.g., lerobot/smolvla_base)
-    --policy_device=cuda \ # POLICY: the device to run the policy on, on the server
-    --actions_per_chunk=50 \ # POLICY: the number of actions to output at once
-    --chunk_size_threshold=0.5 \ # CLIENT: the threshold for the chunk size before sending a new observation to the server
-    --aggregate_fn_name=weighted_average \ # CLIENT: the function to aggregate actions on overlapping portions
-    --debug_visualize_queue_size=True # CLIENT: whether to visualize the queue size at runtime
-    
 
 python -m src.lerobot.scripts.server.robot_client \
     --server_address=192.168.110.39:8080 \
@@ -122,7 +108,7 @@ python -m src.lerobot.scripts.server.robot_client \
     --actions_per_chunk=50 \
     --chunk_size_threshold=0.5 \
     --aggregate_fn_name=weighted_average \
-    --debug_visualize_queue_size=True
+    --debug_visualize_queue_size=True 2>&1 | tee log.log
 
     
 git fetch origin && git reset --hard origin/main

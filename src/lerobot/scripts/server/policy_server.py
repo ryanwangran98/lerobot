@@ -81,6 +81,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         self.lerobot_features = None
         self.actions_per_chunk = None
         self.policy = None
+        self._tokenizer = None  # Cache tokenizer for language-based policies
 
     @property
     def running(self):
@@ -95,6 +96,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         # only running inference on the latest observation received by the server
         self.shutdown_event.set()
         self.observation_queue = Queue(maxsize=1)
+        self._tokenizer = None  # Reset tokenizer cache
 
         with self._predicted_timesteps_lock:
             self._predicted_timesteps = set()
@@ -198,6 +200,11 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         client_id = context.peer()
         self.logger.debug(f"Client {client_id} connected for action streaming")
 
+        # Check if policy is loaded
+        if self.policy is None or self.lerobot_features is None:
+            self.logger.warning("Policy not loaded yet. Skipping action generation.")
+            return services_pb2.Empty()
+
         # Generate action based on the most recent observation and its timestep
         try:
             getactions_starts = time.perf_counter()
@@ -248,6 +255,11 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
 
     def _obs_sanity_checks(self, obs: TimedObservation, previous_obs: TimedObservation) -> bool:
         """Check if the observation is valid to be processed by the policy"""
+        # If policy is not loaded yet, allow all observations
+        if self.lerobot_features is None:
+            self.logger.debug(f"Policy not loaded yet, allowing observation #{obs.get_timestep()}")
+            return True
+
         with self._predicted_timesteps_lock:
             predicted_timesteps = self._predicted_timesteps
 
@@ -315,6 +327,38 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         )
         # processed Observation - right keys, right dtype, right image shape
 
+        # For SmolVLA and other language-based policies, tokenize the task if present
+        if "task" in observation and hasattr(self.policy.config, "tokenizer_max_length"):
+            from lerobot.constants import OBS_LANGUAGE_TOKENS, OBS_LANGUAGE_ATTENTION_MASK
+            
+            # Lazy load and cache tokenizer
+            if self._tokenizer is None:
+                from transformers import AutoTokenizer
+                self._tokenizer = AutoTokenizer.from_pretrained(self.policy.config.vlm_model_name)
+            
+            # Get the task string
+            task = observation["task"]
+            if task is None:
+                task = ""
+            
+            # Ensure task ends with newline
+            if isinstance(task, str) and not task.endswith("\n"):
+                task = task + "\n"
+            
+            # Tokenize task
+            tokenized = self._tokenizer(
+                task,
+                max_length=self.policy.config.tokenizer_max_length,
+                truncation=True,
+                padding="max_length",
+                padding_side="right",
+                return_tensors="pt",
+            )
+            
+            # Add tokenized language data to observation (keep batch dimension)
+            observation[OBS_LANGUAGE_TOKENS] = tokenized["input_ids"].to(self.device)
+            observation[OBS_LANGUAGE_ATTENTION_MASK] = tokenized["attention_mask"].to(dtype=torch.bool, device=self.device)
+
         return observation
 
     def _get_action_chunk(self, observation: dict[str, torch.Tensor]) -> torch.Tensor:
@@ -343,6 +387,8 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
 
         """3. Post-inference processing"""
         start_time = time.perf_counter()
+        # Set the last 3 dimensions of each action to 0
+        action_tensor[:, :, -3:] = 0
         # Move to CPU before serializing
         action_tensor = action_tensor.cpu().squeeze(0)
 
