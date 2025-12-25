@@ -114,7 +114,7 @@ python -m src.lerobot.scripts.server.robot_client \
     --robot.type=xlerobot_single_arm \
     --robot.port1=/dev/ttyACM0 \
     --robot.id=None \
-    --robot.cameras='{"left_wrist": {"type": "opencv", "index_or_path": 2, "width": 640, "height": 480, "fps": 30}, "head": {"type": "opencv", "index_or_path": 0, "width": 640, "height": 480, "fps": 30}}' \
+    --robot.cameras='{"left_wrist": {"type": "opencv", "index_or_path": 2, "width": 640, "height": 480, "fps": 30}, "head(RGDB)": {"type": "opencv", "index_or_path": 0, "width": 640, "height": 480, "fps": 30}}' \
     --task="把螺丝刀放到篮子里" \
     --policy_type=smolvla \
     --pretrained_name_or_path=wangranryan/xlerobot_lsd_2 \
